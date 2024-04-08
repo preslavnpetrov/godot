@@ -153,7 +153,7 @@ namespace GodotPlugins
 
                 foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
                 {
-                    ScriptManagerBridge.LookupScriptsInAssembly(projectAssembly);
+                    ScriptManagerBridge.LookupScriptsInAssembly(assembly);
                 }
 
                 AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoad;

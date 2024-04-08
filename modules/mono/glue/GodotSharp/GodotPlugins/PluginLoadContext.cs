@@ -8,6 +8,7 @@ namespace GodotPlugins
 {
     public class PluginLoadContext : AssemblyLoadContext
     {
+        private readonly string _pluginPath;
         private readonly AssemblyDependencyResolver _resolver;
         private readonly ICollection<string> _sharedAssemblies;
         private readonly AssemblyLoadContext _mainLoadContext;
@@ -18,7 +19,8 @@ namespace GodotPlugins
             AssemblyLoadContext mainLoadContext, bool isCollectible)
             : base(isCollectible)
         {
-            _resolver = new AssemblyDependencyResolver(pluginPath);
+            _pluginPath = pluginPath;
+            _resolver = new AssemblyDependencyResolver(_pluginPath);
             _sharedAssemblies = sharedAssemblies;
             _mainLoadContext = mainLoadContext;
 
@@ -26,7 +28,7 @@ namespace GodotPlugins
             {
                 // See https://github.com/dotnet/runtime/blob/v6.0.0/src/libraries/System.Private.CoreLib/src/System/AppContext.AnyOS.cs#L17-L35
                 // but Assembly.Location is unavailable, because we load assemblies from memory.
-                string? baseDirectory = Path.GetDirectoryName(pluginPath);
+                string? baseDirectory = Path.GetDirectoryName(_pluginPath);
                 if (baseDirectory != null)
                 {
                     if (!Path.EndsInDirectorySeparator(baseDirectory))
@@ -52,24 +54,38 @@ namespace GodotPlugins
                 return _mainLoadContext.LoadFromAssemblyName(assemblyName);
 
             string? assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
-            if (assemblyPath != null)
+
+            if (assemblyPath == null) return null;
+
+            AssemblyLoadedPath = assemblyPath;
+            var mainAssembly = Path.GetFullPath(assemblyPath) == Path.GetFullPath(_pluginPath);
+
+            // Load in memory to prevent locking the file
+            using var assemblyFile = File.Open(assemblyPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            string pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
+
+            Assembly loadedAssembly;
+
+            if (File.Exists(pdbPath))
             {
-                AssemblyLoadedPath = assemblyPath;
-
-                // Load in memory to prevent locking the file
-                using var assemblyFile = File.Open(assemblyPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                string pdbPath = Path.ChangeExtension(assemblyPath, ".pdb");
-
-                if (File.Exists(pdbPath))
-                {
-                    using var pdbFile = File.Open(pdbPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    return LoadFromStream(assemblyFile, pdbFile);
-                }
-
-                return LoadFromStream(assemblyFile);
+                using var pdbFile = File.Open(pdbPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                loadedAssembly = LoadFromStream(assemblyFile, pdbFile);
+            }
+            else
+            {
+                loadedAssembly = LoadFromStream(assemblyFile);
             }
 
-            return null;
+            if (!mainAssembly) return loadedAssembly;
+
+            var referencedAssemblies = loadedAssembly.GetReferencedAssemblies();
+
+            foreach (var referencedAssembly in referencedAssemblies)
+            {
+                Load(referencedAssembly);
+            }
+
+            return loadedAssembly;
         }
 
         protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
