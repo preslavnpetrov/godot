@@ -16,8 +16,8 @@ namespace Godot.SourceGenerators
             if (context.IsGodotToolsProject() || context.IsGodotSourceGeneratorDisabled("GodotPluginsInitializer"))
                 return;
 
-            string source =
-                @"using System;
+            string source = @" using System;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Godot.Bridge;
 using Godot.NativeInterop;
@@ -42,8 +42,15 @@ namespace GodotPlugins.Game
 
                 ManagedCallbacks.Create(outManagedCallbacks);
 
-                ScriptManagerBridge.LookupScriptsInAssembly(typeof(global::GodotPlugins.Game.Main).Assembly);
-                AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoad;
+                var assembly = typeof(global::GodotPlugins.Game.Main).Assembly;
+                ScriptManagerBridge.LookupScriptsInAssembly(assembly);
+                
+                var referencedAssemblies = assembly.GetReferencedAssemblies();
+                foreach (var referencedAssembly in referencedAssemblies)
+                {
+                    assembly = LoadAssembly(referencedAssembly);
+                    ScriptManagerBridge.LookupScriptsInAssembly(assembly);
+                }
 
                 return godot_bool.True;
             }
@@ -54,9 +61,9 @@ namespace GodotPlugins.Game
             }
         }
 
-        private static void OnAssemblyLoad(object obj, AssemblyLoadEventArgs args) 
+        private static Assembly LoadAssembly(AssemblyName assemblyName)
         {
-            ScriptManagerBridge.LookupScriptsInAssembly(args.LoadedAssembly);
+            return Assembly.Load(assemblyName);
         }
     }
 }
