@@ -2678,8 +2678,8 @@ void CSharpScript::get_script_property_list(List<PropertyInfo> *r_list) const {
 #ifdef TOOLS_ENABLED
 	const CSharpScript *top = this;
 	while (top != nullptr) {
-		for (const PropertyInfo &E : top->exported_members_cache) {
-			r_list->push_back(E);
+		for (const KeyValue<StringName, PropertyInfo> &kvp : top->member_info) {
+			r_list->push_back(kvp.value);
 		}
 
 		top = top->base_script.ptr();
