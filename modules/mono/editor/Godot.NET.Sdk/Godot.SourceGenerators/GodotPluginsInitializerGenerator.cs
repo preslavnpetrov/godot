@@ -4,20 +4,20 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Godot.SourceGenerators
 {
-    [Generator]
-    public class GodotPluginsInitializerGenerator : ISourceGenerator
-    {
-        public void Initialize(GeneratorInitializationContext context)
-        {
-        }
+	[Generator]
+	public class GodotPluginsInitializerGenerator : ISourceGenerator
+	{
+		public void Initialize(GeneratorInitializationContext context)
+		{
+		}
 
-        public void Execute(GeneratorExecutionContext context)
-        {
-            if (context.IsGodotToolsProject() || context.IsGodotSourceGeneratorDisabled("GodotPluginsInitializer"))
-                return;
+		public void Execute(GeneratorExecutionContext context)
+		{
+			if (context.IsGodotToolsProject() || context.IsGodotSourceGeneratorDisabled("GodotPluginsInitializer"))
+				return;
 
-            string source = @" using System;
-using System.Reflection;
+			string source =
+				@"using System;
 using System.Runtime.InteropServices;
 using Godot.Bridge;
 using Godot.NativeInterop;
@@ -42,15 +42,13 @@ namespace GodotPlugins.Game
 
                 ManagedCallbacks.Create(outManagedCallbacks);
 
-                var assembly = typeof(global::GodotPlugins.Game.Main).Assembly;
-                ScriptManagerBridge.LookupScriptsInAssembly(assembly);
-                
-                var referencedAssemblies = assembly.GetReferencedAssemblies();
-                foreach (var referencedAssembly in referencedAssemblies)
-                {
-                    assembly = LoadAssembly(referencedAssembly);
-                    ScriptManagerBridge.LookupScriptsInAssembly(assembly);
-                }
+                //ScriptManagerBridge.LookupScriptsInAssembly(typeof(global::GodotPlugins.Game.Main).Assembly);
+				var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+				
+				foreach (var assembly in assemblies) 
+				{
+					ScriptManagerBridge.LookupScriptsInAssembly(assembly);
+				}
 
                 return godot_bool.True;
             }
@@ -60,17 +58,12 @@ namespace GodotPlugins.Game
                 return false.ToGodotBool();
             }
         }
-
-        private static Assembly LoadAssembly(AssemblyName assemblyName)
-        {
-            return Assembly.Load(assemblyName);
-        }
     }
 }
 ";
 
-            context.AddSource("GodotPlugins.Game.generated",
-                SourceText.From(source, Encoding.UTF8));
-        }
-    }
+			context.AddSource("GodotPlugins.Game.generated",
+				SourceText.From(source, Encoding.UTF8));
+		}
+	}
 }
