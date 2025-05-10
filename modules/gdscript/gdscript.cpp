@@ -86,6 +86,7 @@ bool GDScriptNativeClass::_get(const StringName &p_name, Variant &r_ret) const {
 
 void GDScriptNativeClass::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("new"), &GDScriptNativeClass::_new);
+	ClassDB::bind_method(D_METHOD("get_name"), &GDScriptNativeClass::get_name);
 }
 
 Variant GDScriptNativeClass::_new() {
@@ -109,6 +110,12 @@ Variant GDScriptNativeClass::callp(const StringName &p_method, const Variant **p
 		// Constructor.
 		return Object::callp(p_method, p_args, p_argcount, r_error);
 	}
+
+	if (p_method == SNAME("get_name")) {
+		// Return the name
+		return get_name();
+	}
+
 	MethodBind *method = ClassDB::get_method(name, p_method);
 	if (method && method->is_static()) {
 		// Native static method.
